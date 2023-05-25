@@ -11,6 +11,12 @@ grade: stable
 confinement: strict
 license: Proprietary
 
+architectures:
+  # gnome extension is only available on amd64, arm64 and armhf
+  - build-on: amd64
+  - build-on: arm64
+  - build-on: armhf
+
 apps:
   space-cadet-pinball:
     command: usr/bin/SpaceCadetPinball
