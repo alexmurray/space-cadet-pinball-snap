@@ -1,0 +1,99 @@
+name: space-cadet-pinball
+base: core22 # the base snap is the execution environment for this snap
+adopt-info: space-cadet-pinball
+version: 2.0.1
+summary: Reverse engineering of 3D Pinball for Windows - Space Cadet
+description: |
+  Reverse engineering of 3D Pinball for Windows - Space Cadet, a game bundled
+  with Windows.
+
+grade: stable
+confinement: strict
+license: Proprietary
+
+apps:
+  space-cadet-pinball:
+    command: usr/bin/SpaceCadetPinball
+    environment:
+      SDL_SOUNDFONTS: $SNAP/usr/share/sounds/sf2/FluidR3_GM.sf2
+    extensions:
+      - gnome
+    plugs:
+      - audio-playback
+      - hardware-observe
+      - joystick
+      - opengl
+      - screen-inhibit-control
+    desktop: usr/share/applications/SpaceCadetPinball.desktop
+
+parts:
+  space-cadet-pinball:
+    # See 'snapcraft plugins'
+    plugin: cmake
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_INSTALL_PREFIX=/usr
+    source: https://github.com/k4zmu2a/SpaceCadetPinball.git
+    build-packages:
+      - libsdl2-dev
+      - libsdl2-mixer-dev
+      - ninja-build
+    stage-packages:
+      - freepats
+      - fluidsynth
+      - fluid-soundfont-gm
+      - libpulse0
+      - libsdl2-2.0-0
+      - libsdl2-mixer-2.0-0
+    override-prime: |
+      set -eu
+      craftctl default
+      # Fix-up application icon lookup
+      sed -i -e 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/192x192/apps/SpaceCadetPinball.png|' usr/share/applications/SpaceCadetPinball.desktop
+
+  fulltilt:
+    plugin: dump
+    source: https://archive.org/download/win311_ftiltpball/FULLTILT.ZIP
+    source-type: zip
+    organize:
+     CADET/CADET.DAT: usr/bin/CADET.DAT
+     CADET/SOUND: usr/bin/SOUND
+    prime:
+     - -DRAGON
+     - -PIRATES
+     - -CADET/CADET.BMP
+     - -CADET/CADET.EXE
+     - -CADET/WAVEMIX.DLL
+     - -FULLTILT.*
+     - -LOGO.AVI
+
+  space-cadet:
+    plugin: nil
+    build-packages:
+    - wget
+    - p7zip
+    - p7zip-rar
+    override-pull: |
+      craftctl default
+      wget https://archive.org/download/SpaceCadet_Plus95/Space_Cadet.rar
+      7z x -y Space_Cadet.rar -oSpace_Cadet/
+    override-build: |
+      craftctl default
+      cd Space_Cadet
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/bin/
+      cp PINBALL.DAT *.MID Sounds/*.WAV $SNAPCRAFT_PART_INSTALL/usr/bin/
+
+  cleanup:
+      after:  # Make this part run last; list all your other parts here
+        - space-cadet-pinball
+        - fulltilt
+      plugin: nil
+      build-snaps:  # List all content-snaps and base snaps you're using here
+        - core22
+        - gnome-42-2204
+        - gtk-common-themes
+      override-prime: |
+        set -eux
+        for snap in "core22" "gnome-42-2204" "gtk-common-themes"; do  # List all content-snaps and base snaps you're using here
+          cd "/snap/$snap/current" && find . -type f,l -exec rm -f "$SNAPCRAFT_PRIME/{}" \;
+        done
